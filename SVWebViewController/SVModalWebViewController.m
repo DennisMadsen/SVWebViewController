@@ -11,60 +11,38 @@
 
 @interface SVModalWebViewController ()
 
-@property (nonatomic, assign) SVWebViewController *webViewController;
+@property (nonatomic, strong) SVWebViewController *webViewController;
 
 @end
 
 
 @implementation SVModalWebViewController
 
-@synthesize barsTintColor, doneBarButtonItem, availableActions, doneBarButtonPosition, loadingBarButtonType, webViewController;
+@synthesize barsTintColor, availableActions, webViewController;
 
 #pragma mark - Initialization
 
-- (void)dealloc {
-    self.barsTintColor = nil;
-    [super dealloc];
-}
 
 - (id)initWithAddress:(NSString*)urlString {
     return [self initWithURL:[NSURL URLWithString:urlString]];
 }
 
 - (id)initWithURL:(NSURL *)URL {
-    self.webViewController = [[[SVWebViewController alloc] initWithURL:URL] autorelease];
-    self.doneBarButtonPosition = SVWebViewControllerDoneBarButtonPositionLeft;
+    self.webViewController = [[SVWebViewController alloc] initWithURL:URL];
     if (self = [super initWithRootViewController:self.webViewController]) {
-        self.doneBarButtonItem = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:webViewController action:@selector(doneButtonClicked:)] autorelease];
+        self.webViewController.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone target:webViewController action:@selector(doneButtonClicked:)];
     }
     return self;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
+    [super viewWillAppear:NO];
     
-    switch (self.webViewController.doneBarButtonPosition) {
-        case SVWebViewControllerDoneBarButtonPositionLeft:
-            self.webViewController.navigationItem.leftBarButtonItem = self.doneBarButtonItem;
-            break;
-        case SVWebViewControllerDoneBarButtonPositionRight:
-            self.webViewController.navigationItem.rightBarButtonItem = self.doneBarButtonItem;
-            break;
-    }
-    
-    self.navigationBar.tintColor = self.toolbar.tintColor = self.barsTintColor;
+    self.navigationBar.tintColor = self.barsTintColor;
 }
 
 - (void)setAvailableActions:(SVWebViewControllerAvailableActions)newAvailableActions {
     self.webViewController.availableActions = newAvailableActions;
-}
-
-- (void)setDoneBarButtonPosition:(SVWebViewControllerDoneBarButtonPosition)newDoneBarButtonPosition {
-    self.webViewController.doneBarButtonPosition = newDoneBarButtonPosition;
-}
-
-- (void)setLoadingBarButtonType:(SVWebViewControllerLoadingBarButtonType)newLoadingBarButtonType {
-    self.webViewController.loadingBarButtonType = newLoadingBarButtonType;
 }
 
 @end

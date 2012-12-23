@@ -15,19 +15,8 @@ enum {
     SVWebViewControllerAvailableActionsCopyLink         = 1 << 2
 };
 
-enum {
-    SVWebViewControllerDoneBarButtonPositionLeft    = 1,
-    SVWebViewControllerDoneBarButtonPositionRight   = 2
-};
-
-enum {
-    SVWebViewControllerLoadingBarButtonTypeStop                 = 1,
-    SVWebViewControllerLoadingBarButtonTypeActivityIndicator    = 2
-};
-
 typedef NSUInteger SVWebViewControllerAvailableActions;
-typedef NSUInteger SVWebViewControllerDoneBarButtonPosition;
-typedef NSUInteger SVWebViewControllerLoadingBarButtonType;
+
 
 @class SVWebViewController;
 
@@ -36,10 +25,7 @@ typedef NSUInteger SVWebViewControllerLoadingBarButtonType;
 - (id)initWithAddress:(NSString*)urlString;
 - (id)initWithURL:(NSURL *)URL;
 
-@property (nonatomic, retain) UIColor *barsTintColor;
-@property (nonatomic, retain) UIBarButtonItem *doneBarButtonItem;
-@property (nonatomic, assign) SVWebViewControllerAvailableActions availableActions;
-@property (nonatomic, assign) SVWebViewControllerDoneBarButtonPosition doneBarButtonPosition;
-@property (nonatomic, assign) SVWebViewControllerLoadingBarButtonType loadingBarButtonType;
+@property (nonatomic, strong) UIColor *barsTintColor;
+@property (nonatomic, readwrite) SVWebViewControllerAvailableActions availableActions;
 
 @end

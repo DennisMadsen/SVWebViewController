@@ -8,19 +8,17 @@
 
 #import "SVWebViewController.h"
 
-@interface SVWebViewController ()
+@interface SVWebViewController () <UIWebViewDelegate, UIActionSheetDelegate, MFMailComposeViewControllerDelegate>
 
-@property (nonatomic, retain, readonly) UIBarButtonItem *backBarButtonItem;
-@property (nonatomic, retain, readonly) UIBarButtonItem *forwardBarButtonItem;
-@property (nonatomic, retain, readonly) UIBarButtonItem *refreshBarButtonItem;
-@property (nonatomic, retain, readonly) UIBarButtonItem *stopBarButtonItem;
-@property (nonatomic, retain, readonly) UIBarButtonItem *activityIndicatorBarButtonItem;
-@property (nonatomic, retain, readonly) UIBarButtonItem *loadingBarButtonItem;
-@property (nonatomic, retain, readonly) UIBarButtonItem *actionBarButtonItem;
-@property (nonatomic, retain, readonly) UIActionSheet *pageActionSheet;
+@property (nonatomic, strong, readonly) UIBarButtonItem *backBarButtonItem;
+@property (nonatomic, strong, readonly) UIBarButtonItem *forwardBarButtonItem;
+@property (nonatomic, strong, readonly) UIBarButtonItem *refreshBarButtonItem;
+@property (nonatomic, strong, readonly) UIBarButtonItem *stopBarButtonItem;
+@property (nonatomic, strong, readonly) UIBarButtonItem *actionBarButtonItem;
+@property (nonatomic, strong, readonly) UIActionSheet *pageActionSheet;
 
-@property (nonatomic, retain, readonly) UIWebView *mainWebView;
-@property (nonatomic, retain) NSURL *URL;
+@property (nonatomic, strong) UIWebView *mainWebView;
+@property (nonatomic, strong) NSURL *URL;
 
 - (id)initWithAddress:(NSString*)urlString;
 - (id)initWithURL:(NSURL*)URL;
@@ -38,10 +36,10 @@
 
 @implementation SVWebViewController
 
-@synthesize availableActions, loadingBarButtonType;
+@synthesize availableActions;
 
 @synthesize URL, mainWebView;
-@synthesize backBarButtonItem, forwardBarButtonItem, refreshBarButtonItem, stopBarButtonItem, activityIndicatorBarButtonItem, loadingBarButtonItem, actionBarButtonItem, doneBarButtonPosition, pageActionSheet;
+@synthesize backBarButtonItem, forwardBarButtonItem, refreshBarButtonItem, stopBarButtonItem, actionBarButtonItem, pageActionSheet;
 
 #pragma mark - setters and getters
 
@@ -80,31 +78,6 @@
         stopBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemStop target:self action:@selector(stopClicked:)];
     }
     return stopBarButtonItem;
-}
-
-- (UIBarButtonItem *)activityIndicatorBarButtonItem {
-    
-    if (!activityIndicatorBarButtonItem) {
-        UIActivityIndicatorView * activityView = [[[UIActivityIndicatorView alloc] initWithFrame:CGRectMake(0, 0, 25, 25)] autorelease];
-        [activityView sizeToFit];
-        [activityView setAutoresizingMask:(UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin)];
-        [activityView startAnimating];
-        activityIndicatorBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:activityView];
-    }
-    return activityIndicatorBarButtonItem;
-}
-
-- (UIBarButtonItem *)loadingBarButtonItem {
-    
-    switch (self.loadingBarButtonType) {
-        case SVWebViewControllerLoadingBarButtonTypeActivityIndicator:
-            return self.activityIndicatorBarButtonItem;
-            break;
-        case SVWebViewControllerLoadingBarButtonTypeStop:
-        default:
-            return self.stopBarButtonItem;
-            break;
-    }
 }
 
 - (UIBarButtonItem *)actionBarButtonItem {
@@ -157,30 +130,9 @@
     return self;
 }
 
-#pragma mark - Memory management
-
-- (void)dealloc {
-    mainWebView.delegate = nil;
-    [mainWebView release];
-    
-    [URL release];
-    [backBarButtonItem release];
-    [forwardBarButtonItem release];
-    [refreshBarButtonItem release];
-    [stopBarButtonItem release];
-    [activityIndicatorBarButtonItem release];
-    [loadingBarButtonItem release];
-    [actionBarButtonItem release];
-    
-    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
-    
-    [super dealloc];
-}
-
 #pragma mark - View lifecycle
 
 - (void)loadView {
-    
     mainWebView = [[UIWebView alloc] initWithFrame:[UIScreen mainScreen].bounds];
     mainWebView.delegate = self;
     mainWebView.scalesPageToFit = YES;
@@ -195,17 +147,13 @@
 
 - (void)viewDidUnload {
     [super viewDidUnload];
-    
-    [mainWebView release], mainWebView = nil;
-    
-    [backBarButtonItem release], backBarButtonItem = nil;
-    [forwardBarButtonItem release], forwardBarButtonItem = nil;
-    [refreshBarButtonItem release], refreshBarButtonItem = nil;
-    [stopBarButtonItem release], stopBarButtonItem = nil;
-    [activityIndicatorBarButtonItem release], activityIndicatorBarButtonItem = nil;
-    [loadingBarButtonItem release], loadingBarButtonItem = nil;
-    [actionBarButtonItem release], actionBarButtonItem = nil;
-    [pageActionSheet release], pageActionSheet = nil;
+    mainWebView = nil;
+    backBarButtonItem = nil;
+    forwardBarButtonItem = nil;
+    refreshBarButtonItem = nil;
+    stopBarButtonItem = nil;
+    actionBarButtonItem = nil;
+    pageActionSheet = nil;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -226,12 +174,23 @@
     }
 }
 
+- (void)viewDidDisappear:(BOOL)animated {
+    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
+}
+
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation {
     
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
         return YES;
     
     return toInterfaceOrientation != UIInterfaceOrientationPortraitUpsideDown;
+}
+
+- (void)dealloc
+{
+    [mainWebView stopLoading];
+ 	[[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
+    mainWebView.delegate = nil;
 }
 
 #pragma mark - Toolbar
@@ -241,11 +200,11 @@
     self.forwardBarButtonItem.enabled = self.mainWebView.canGoForward;
     self.actionBarButtonItem.enabled = !self.mainWebView.isLoading;
     
-    UIBarButtonItem *refreshLoadingBarButtonItem = self.mainWebView.isLoading ? self.loadingBarButtonItem : self.refreshBarButtonItem;
+    UIBarButtonItem *refreshStopBarButtonItem = self.mainWebView.isLoading ? self.stopBarButtonItem : self.refreshBarButtonItem;
     
-    UIBarButtonItem *fixedSpace = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil] autorelease];
+    UIBarButtonItem *fixedSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFixedSpace target:nil action:nil];
     fixedSpace.width = 5.0f;
-    UIBarButtonItem *flexibleSpace = [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil] autorelease];
+    UIBarButtonItem *flexibleSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
     
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
         NSArray *items;
@@ -255,7 +214,7 @@
             toolbarWidth = 200.0f;
             items = [NSArray arrayWithObjects:
                      fixedSpace,
-                     refreshLoadingBarButtonItem,
+                     refreshStopBarButtonItem,
                      flexibleSpace,
                      self.backBarButtonItem,
                      flexibleSpace,
@@ -265,7 +224,7 @@
         } else {
             items = [NSArray arrayWithObjects:
                      fixedSpace,
-                     refreshLoadingBarButtonItem,
+                     refreshStopBarButtonItem,
                      flexibleSpace,
                      self.backBarButtonItem,
                      flexibleSpace,
@@ -276,21 +235,10 @@
                      nil];
         }
         
-        UIToolbar *toolbar = [[[UIToolbar alloc] initWithFrame:CGRectMake(0.0f, 0.0f, toolbarWidth, 44.0f)] autorelease];
+        UIToolbar *toolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0.0f, 0.0f, toolbarWidth, 44.0f)];
         toolbar.items = items;
         toolbar.tintColor = self.navigationController.navigationBar.tintColor;
-        
-        UIBarButtonItem *toolbarBarButtonItem = [[[UIBarButtonItem alloc] initWithCustomView:toolbar] autorelease];
-        switch (self.doneBarButtonPosition) {
-            case SVWebViewControllerDoneBarButtonPositionRight:
-                self.navigationItem.leftBarButtonItem = toolbarBarButtonItem;
-                break;
-            case SVWebViewControllerDoneBarButtonPositionLeft:
-            default:
-                self.navigationItem.rightBarButtonItem = toolbarBarButtonItem;
-                break;
-        }
-        
+        self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView:toolbar];
     } 
     
     else {
@@ -303,7 +251,7 @@
                      flexibleSpace,
                      self.forwardBarButtonItem,
                      flexibleSpace,
-                     refreshLoadingBarButtonItem,
+                     refreshStopBarButtonItem,
                      flexibleSpace,
                      nil];
         } else {
@@ -313,7 +261,7 @@
                      flexibleSpace,
                      self.forwardBarButtonItem,
                      flexibleSpace,
-                     refreshLoadingBarButtonItem,
+                     refreshStopBarButtonItem,
                      flexibleSpace,
                      self.actionBarButtonItem,
                      fixedSpace,
@@ -361,8 +309,6 @@
 
 - (void)stopClicked:(UIBarButtonItem *)sender {
     [mainWebView stopLoading];
-    
-    [[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
 	[self updateToolbarItems];
 }
 
@@ -376,11 +322,14 @@
     else
         [self.pageActionSheet showFromToolbar:self.navigationController.toolbar];
     
-    [pageActionSheet release];
 }
 
 - (void)doneButtonClicked:(id)sender {
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < 60000
     [self dismissModalViewControllerAnimated:YES];
+#else
+    [self dismissViewControllerAnimated:YES completion:NULL];
+#endif
 }
 
 #pragma mark -
@@ -399,14 +348,18 @@
     
     else if([title isEqualToString:NSLocalizedString(@"Mail Link to this Page", @"")]) {
         
-		MFMailComposeViewController *mailViewController = [[[MFMailComposeViewController alloc] init] autorelease];
+		MFMailComposeViewController *mailViewController = [[MFMailComposeViewController alloc] init];
         
 		mailViewController.mailComposeDelegate = self;
         [mailViewController setSubject:[self.mainWebView stringByEvaluatingJavaScriptFromString:@"document.title"]];
   		[mailViewController setMessageBody:self.mainWebView.request.URL.absoluteString isHTML:NO];
 		mailViewController.modalPresentationStyle = UIModalPresentationFormSheet;
         
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < 60000
 		[self presentModalViewController:mailViewController animated:YES];
+#else
+        [self presentViewController:mailViewController animated:YES completion:NULL];
+#endif
 	}
     
     pageActionSheet = nil;
@@ -415,11 +368,16 @@
 #pragma mark -
 #pragma mark MFMailComposeViewControllerDelegate
 
-- (void)mailComposeController:(MFMailComposeViewController *)controller 
-          didFinishWithResult:(MFMailComposeResult)result 
-                        error:(NSError *)error 
+- (void)mailComposeController:(MFMailComposeViewController *)controller
+          didFinishWithResult:(MFMailComposeResult)result
+                        error:(NSError *)error
 {
+    
+#if __IPHONE_OS_VERSION_MIN_REQUIRED < 60000
 	[self dismissModalViewControllerAnimated:YES];
+#else
+    [self dismissViewControllerAnimated:YES completion:NULL];
+#endif
 }
 
 @end
